@@ -1,10 +1,6 @@
 import json
 import string
-
-with open('jsons/message_1.json') as f:
-  data = json.load(f)
-
-split_by_sender = True
+import os
 
 stop_words = ["a", "able", "about", "across", "after", "all", "almost", "also", "am", "among", "an",
             "and", "any", "are", "as", "at", "be", "because", "been", "but", "by", "can", "cannot",
@@ -18,40 +14,58 @@ stop_words = ["a", "able", "about", "across", "after", "all", "almost", "also", 
             "when", "where", "which", "while", "who", "whom", "why", "will", "with", "would", "yet",
             "you", "your"]
 
-freq = {}
+class Parser:
+    split_by_sender = True
+    freq = {}
+    sender_freqs = {}
+    message_count = {}
+    message_length = {}
 
-sender_freqs = {}
-message_count = {}
-message_length = {}
-
-for participant in data['participants']:
-    participant_name = participant['name']
-    sender_freqs[participant_name] = {}
-    message_count[participant_name] = 0
-    message_length[participant_name] = 0
-    
-for message_data in data['messages']:
-    if 'content' in message_data:
-        sender = message_data['sender_name']
-        msg = message_data['content']
-        message_count[sender] += 1
-        message_length[sender] += len(msg)
-
-        words = msg.split()
-        for word in words:
-            word = word.translate(str.maketrans('', '', string.punctuation))
-            cleaned_word = word.lower()
-            if (len(word) > 0):
-                if split_by_sender:
-                    if (cleaned_word not in sender_freqs[sender]):
-                        sender_freqs[sender][cleaned_word] = 0
-                    sender_freqs[sender][cleaned_word] += 1
-                else:
-                    if (cleaned_word not in freq):
-                        freq[cleaned_word] = 0
-                    freq[cleaned_word] += 1
-    else:
+    def __init__(self):
         pass
+
+    def load_file(self, file_name):
+        with open(file_name) as f:
+            data = json.load(f)
+            self.add_data(data)
+
+    def load_folder(self, folder_name):
+        for file in os.listdir("./" + folder_name):
+            if file.endswith(".json"):
+                with open(os.path.join("./", folder_name, file)) as f:
+                    data = json.load(f)
+                    self.add_data(data)
+
+    def add_data(self, data):
+        for participant in data['participants']:
+            participant_name = participant['name']
+            if participant_name not in self.sender_freqs:
+                self.sender_freqs[participant_name] = {}
+                self.message_count[participant_name] = 0
+                self.message_length[participant_name] = 0
+                
+        for message_data in data['messages']:
+            if 'content' in message_data:
+                sender = message_data['sender_name']
+                msg = message_data['content']
+                self.message_count[sender] += 1
+                self.message_length[sender] += len(msg)
+
+                words = msg.split()
+                for word in words:
+                    word = word.translate(str.maketrans('', '', string.punctuation))
+                    cleaned_word = word.lower()
+                    if (len(word) > 0):
+                        if self.split_by_sender:
+                            if (cleaned_word not in self.sender_freqs[sender]):
+                                self.sender_freqs[sender][cleaned_word] = 0
+                            self.sender_freqs[sender][cleaned_word] += 1
+                        else:
+                            if (cleaned_word not in self.freq):
+                                self.freq[cleaned_word] = 0
+                            self.freq[cleaned_word] += 1
+            else:
+                pass
 
 def without_stopwords(freq, quant):
     sort_freq = sorted(freq.items(), key=lambda x: x[1], reverse=True)
@@ -63,15 +77,20 @@ def without_stopwords(freq, quant):
             print(count, tup[0])
             count += 1
 
-for sender in sender_freqs:
+parser = Parser()
+# parser.load_file("jsons/message_1.json")
+parser.load_folder("jsons/someone")
+
+for sender in parser.sender_freqs:
     print(sender)
-    without_stopwords(sender_freqs[sender], 10)
+    without_stopwords(parser.sender_freqs[sender], 25)
 
-print(message_count)
-print(message_length)
-for sender in sender_freqs:
-    if (message_count[sender] > 0):
+print(parser.message_count)
+print(parser.message_length)
+
+for sender in parser.sender_freqs:
+    if (parser.message_count[sender] > 0):
         print(sender)
-        print(message_length[sender] / message_count[sender])
+        print(parser.message_length[sender] / parser.message_count[sender])
 
-without_stopwords(freq, 30)
+without_stopwords(parser.freq, 500)
