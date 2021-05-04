@@ -15,7 +15,6 @@ stop_words = ["a", "able", "about", "across", "after", "all", "almost", "also", 
             "you", "your"]
 
 class Parser:
-    split_by_sender = True
     freq = {}
     sender_freqs = {}
     message_count = {}
@@ -56,14 +55,12 @@ class Parser:
                     word = word.translate(str.maketrans('', '', string.punctuation))
                     cleaned_word = word.lower()
                     if (len(word) > 0):
-                        if self.split_by_sender:
-                            if (cleaned_word not in self.sender_freqs[sender]):
-                                self.sender_freqs[sender][cleaned_word] = 0
-                            self.sender_freqs[sender][cleaned_word] += 1
-                        else:
-                            if (cleaned_word not in self.freq):
-                                self.freq[cleaned_word] = 0
-                            self.freq[cleaned_word] += 1
+                        if (cleaned_word not in self.sender_freqs[sender]):
+                            self.sender_freqs[sender][cleaned_word] = 0
+                        self.sender_freqs[sender][cleaned_word] += 1
+                        if (cleaned_word not in self.freq):
+                            self.freq[cleaned_word] = 0
+                        self.freq[cleaned_word] += 1
             else:
                 pass
 
@@ -83,7 +80,7 @@ parser.load_folder("jsons/someone")
 
 for sender in parser.sender_freqs:
     print(sender)
-    without_stopwords(parser.sender_freqs[sender], 25)
+    without_stopwords(parser.sender_freqs[sender], 50)
 
 print(parser.message_count)
 print(parser.message_length)
@@ -94,3 +91,40 @@ for sender in parser.sender_freqs:
         print(parser.message_length[sender] / parser.message_count[sender])
 
 without_stopwords(parser.freq, 500)
+
+weight_words = []
+
+for x in parser.freq:
+    if (parser.freq[x] < 100):
+        continue
+    total_weight = 0
+    max_weight = 0
+    for sender in parser.sender_freqs:
+        if (x in parser.sender_freqs[sender]):
+            normalized = 10000 * parser.sender_freqs[sender][x] / parser.message_length[sender]
+            total_weight += normalized
+            max_weight = max(max_weight, normalized)
+    weight_words.append((x, max_weight / total_weight))
+
+sorted_weights = sorted(weight_words, key = lambda x: x[1], reverse=True)
+
+for x in sorted_weights[:25]:
+    print(x)
+
+# print(sorted_weights)
+
+while (True):
+    x = input()
+    if (x in parser.freq):
+        print("total", parser.freq[x])
+        total_weight = 0
+        max_weight = 0
+        for sender in parser.sender_freqs:
+            if (x in parser.sender_freqs[sender]):
+                normalized = 10000 * parser.sender_freqs[sender][x] / parser.message_length[sender]
+                total_weight += normalized
+                max_weight = max(max_weight, normalized)
+                print(sender, normalized)
+        print(max_weight / total_weight)
+    else:
+        print("NONE")
