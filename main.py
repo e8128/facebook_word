@@ -1,10 +1,10 @@
 import json
 import string
 
-with open('jsons/fastmenace.json') as f:
+with open('jsons/message_1.json') as f:
   data = json.load(f)
 
-split_by_sender = False
+split_by_sender = True
 
 stop_words = ["a", "able", "about", "across", "after", "all", "almost", "also", "am", "among", "an",
             "and", "any", "are", "as", "at", "be", "because", "been", "but", "by", "can", "cannot",
@@ -19,14 +19,24 @@ stop_words = ["a", "able", "about", "across", "after", "all", "almost", "also", 
             "you", "your"]
 
 freq = {}
-sender_freqs = {}
 
+sender_freqs = {}
+message_count = {}
+message_length = {}
+
+for participant in data['participants']:
+    participant_name = participant['name']
+    sender_freqs[participant_name] = {}
+    message_count[participant_name] = 0
+    message_length[participant_name] = 0
+    
 for message_data in data['messages']:
     if 'content' in message_data:
         sender = message_data['sender_name']
-        if (sender not in sender_freqs):
-            sender_freqs[sender] = {}
         msg = message_data['content']
+        message_count[sender] += 1
+        message_length[sender] += len(msg)
+
         words = msg.split()
         for word in words:
             word = word.translate(str.maketrans('', '', string.punctuation))
@@ -55,6 +65,13 @@ def without_stopwords(freq, quant):
 
 for sender in sender_freqs:
     print(sender)
-    without_stopwords(sender_freqs[sender], 30)
+    without_stopwords(sender_freqs[sender], 10)
+
+print(message_count)
+print(message_length)
+for sender in sender_freqs:
+    if (message_count[sender] > 0):
+        print(sender)
+        print(message_length[sender] / message_count[sender])
 
 without_stopwords(freq, 30)
