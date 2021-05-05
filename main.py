@@ -31,9 +31,7 @@ class Parser:
     def load_folder(self, folder_name):
         for file in os.listdir("./" + folder_name):
             if file.endswith(".json"):
-                with open(os.path.join("./", folder_name, file)) as f:
-                    data = json.load(f)
-                    self.add_data(data)
+                self.load_file(os.path.join("./", folder_name, file))
 
     def add_data(self, data):
         for participant in data['participants']:
@@ -50,11 +48,13 @@ class Parser:
                 self.message_count[sender] += 1
                 self.message_length[sender] += len(msg)
 
+                msg = msg.replace("\u00e2\u0080\u0099", "'")
+
                 words = msg.split()
                 for word in words:
                     word = word.translate(str.maketrans('', '', string.punctuation))
                     cleaned_word = word.lower()
-                    if (len(word) > 0):
+                    if (len(word) > 1):
                         if (cleaned_word not in self.sender_freqs[sender]):
                             self.sender_freqs[sender][cleaned_word] = 0
                         self.sender_freqs[sender][cleaned_word] += 1
@@ -63,6 +63,54 @@ class Parser:
                         self.freq[cleaned_word] += 1
             else:
                 pass
+
+    def uniqueness(self, cutoff=50):
+        weight_words = []
+        for x in self.freq:
+            if (self.freq[x] < cutoff):
+                continue
+            total_weight = 0
+            max_weight = 0
+            max_sender = None
+            for sender in self.sender_freqs:
+                if (x in self.sender_freqs[sender]):
+                    normalized = 10000 * self.sender_freqs[sender][x] / self.message_length[sender]
+                    total_weight += normalized
+                    if (normalized > max_weight):
+                        max_weight = normalized
+                        max_sender = sender
+            weight_words.append((x, max_weight / total_weight, max_sender))
+
+        sorted_weights = sorted(weight_words, key = lambda x: x[1], reverse=True)
+        
+        unique_by_person = {}
+        for sender in self.sender_freqs:
+            unique_by_person[sender] = []
+        for tup in sorted_weights:
+            if (len(unique_by_person[tup[2]]) < 10):
+                unique_by_person[tup[2]].append((tup[0], tup[1]))
+
+        for person in unique_by_person:
+            print(person)
+            for i in range(0, len(unique_by_person[person])):
+                print("{}. {} ({:.3f})".format(i, unique_by_person[person][i][0], unique_by_person[person][i][1]))
+
+    def message_lengths(self):
+        # TODO: sort this
+        # print(self.message_count)
+        # print(self.message_length)
+
+        for sender in self.sender_freqs:
+            if (parser.message_count[sender] > 0):
+                print ("{}: {}".format(sender, parser.message_length[sender] / self.message_count[sender]))
+        
+    def basic_freq(self, all_num = 20, indiv_num = 10):
+        print("Overall Frequency")
+        without_stopwords(self.freq, all_num)
+        for sender in parser.sender_freqs:
+            print(sender)
+            without_stopwords(parser.sender_freqs[sender], indiv_num)
+
 
 def without_stopwords(freq, quant):
     sort_freq = sorted(freq.items(), key=lambda x: x[1], reverse=True)
@@ -78,41 +126,12 @@ parser = Parser()
 # parser.load_file("jsons/message_1.json")
 parser.load_folder("jsons/someone")
 
-for sender in parser.sender_freqs:
-    print(sender)
-    without_stopwords(parser.sender_freqs[sender], 50)
+# Printing
+parser.basic_freq(indiv_num=10)
+parser.message_lengths()
+parser.uniqueness(cutoff=50)
 
-print(parser.message_count)
-print(parser.message_length)
-
-for sender in parser.sender_freqs:
-    if (parser.message_count[sender] > 0):
-        print(sender)
-        print(parser.message_length[sender] / parser.message_count[sender])
-
-without_stopwords(parser.freq, 500)
-
-weight_words = []
-
-for x in parser.freq:
-    if (parser.freq[x] < 100):
-        continue
-    total_weight = 0
-    max_weight = 0
-    for sender in parser.sender_freqs:
-        if (x in parser.sender_freqs[sender]):
-            normalized = 10000 * parser.sender_freqs[sender][x] / parser.message_length[sender]
-            total_weight += normalized
-            max_weight = max(max_weight, normalized)
-    weight_words.append((x, max_weight / total_weight))
-
-sorted_weights = sorted(weight_words, key = lambda x: x[1], reverse=True)
-
-for x in sorted_weights[:25]:
-    print(x)
-
-# print(sorted_weights)
-
+# additional information loop
 while (True):
     x = input()
     if (x in parser.freq):
